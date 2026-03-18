@@ -7,7 +7,7 @@ applications:
     web:
       locations:
         /:
-          root: "."
+          root: ""
           index:
             - index.html
           allow: true
