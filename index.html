@@ -1,0 +1,1610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Upsun Outbound Command Center</title>
+<script>tailwind={config:{darkMode:'class'}}</script>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  .tooltip-wrap:hover .tooltip-box{display:block}
+  .tooltip-box{display:none}
+  .slide-panel{transition:transform 0.3s ease;transform:translateX(100%)}
+  .slide-panel.open{transform:translateX(0)}
+  @keyframes fadeIn{from{opacity:0;transform:scale(0.97)}to{opacity:1;transform:scale(1)}}
+  .modal-fade{animation:fadeIn 0.18s ease}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .spin{animation:spin 0.8s linear infinite}
+  .row-highlight{background-color:rgba(139,92,246,0.15)!important}
+  @media print{body>*{display:none!important}.plan-print-area{display:block!important;position:fixed;top:0;left:0;width:100%;padding:20px;background:white;color:black}}
+  .plan-print-area{display:none}
+  ::-webkit-scrollbar{width:6px;height:6px}
+  ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{background:#475569;border-radius:3px}
+</style>
+</head>
+<body class="bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 min-h-screen">
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useEffect,useRef,useCallback,useMemo}=React;
+
+const SAMPLE_ACCOUNTS=[
+  {id:1,status:'In Progress',company:'Degreed',domain:'degreed.com',industry:'SaaS / EdTech',icpCategory:'SaaS',size:'500–1,000 employees',location:'Pleasanton, CA',description:'Workforce learning platform helping enterprises build skills at scale.',icpScore:92,icpReason:'Strong ICP: SaaS company actively scaling off Heroku. Node.js/PHP workloads align with Upsun core use cases. 4 active DevOps hires signal infrastructure investment. EdTech/SaaS is a primary target vertical.',intentSignals:{paas:'High',cloudApp:'High'},personas:['VP of Engineering','Director of Platform Engineering','CTO'],hiringSignals:['4 DevOps Engineer roles posted (LinkedIn - 45D)','New VP of Engineering started 3 weeks ago ⭐ (LinkedIn - 45D)'],techStack:['Node.js','PHP','React','Heroku','AWS'],competitor:'Heroku',meetingBookedAt:null,touches:3,hq:'Pleasanton, CA',linkedinUrl:'https://www.linkedin.com/company/degreed',timeline:[{date:'2026-01-15',type:'added',text:'Account added to workspace'},{date:'2026-01-20',type:'signal',text:'Intent spike: PaaS signal → High'},{date:'2026-02-03',type:'hiring',text:'New VP of Engineering hire detected ⭐ (LinkedIn - 45D)'},{date:'2026-02-10',type:'email',text:'Quick Outreach email generated'},{date:'2026-02-14',type:'status',text:'Status changed: New → In Progress'},{date:'2026-02-28',type:'cadence',text:'4-email cadence created'}]},
+  {id:2,status:'Meeting Booked',company:'Arizona State University',domain:'asu.edu',industry:'Higher Education',icpCategory:'Higher Ed',size:'10,000+ employees',location:'Tempe, AZ',description:'One of the largest public universities with a major digital transformation initiative.',icpScore:87,icpReason:'Higher Education is a top target vertical. Running Drupal on Pantheon — prime switching candidate. Recent IT infrastructure hiring and digital transformation mandates support timing.',intentSignals:{paas:'High',cloudApp:'Medium'},personas:['Director of Web','CIO','Director of Digital Experience','VP of Engineering'],hiringSignals:['2 Cloud Infrastructure Engineer roles posted (LinkedIn - 45D)','1 DevOps Lead opening active (LinkedIn - 45D)','New CIO hired 6 weeks ago ⭐ (LinkedIn - 45D)'],techStack:['Drupal','PHP','Pantheon','AWS'],competitor:'Pantheon',meetingBookedAt:new Date(Date.now()-5*86400000).toISOString(),touches:5,hq:'Tempe, AZ',linkedinUrl:'https://www.linkedin.com/school/arizona-state-university',timeline:[{date:'2025-12-01',type:'added',text:'Account added to workspace'},{date:'2026-01-08',type:'hiring',text:'New CIO hired ⭐ (LinkedIn - 45D)'},{date:'2026-01-10',type:'signal',text:'Intent spike: PaaS → High'},{date:'2026-01-15',type:'email',text:'Quick Outreach email sent to Director of Web'},{date:'2026-01-22',type:'cadence',text:'4-email cadence created for CIO persona'},{date:'2026-02-01',type:'status',text:'Status: New → In Progress'},{date:'2026-03-12',type:'status',text:'Status: In Progress → Meeting Booked ✓'}]},
+  {id:3,status:'New',company:'Salsify',domain:'salsify.com',industry:'SaaS / PIM',icpCategory:'SaaS',size:'500–1,000 employees',location:'Boston, MA',description:'Product experience management platform for brands and retailers.',icpScore:84,icpReason:'SaaS with PHP/Symfony on Heroku — strong switching candidate. Active DevOps hiring indicates infrastructure scaling moment. Symfony is a flagship use case. Intent signals rising.',intentSignals:{paas:'High',cloudApp:'Medium'},personas:['VP of Engineering','Director of Platform Engineering','Manager of Platform Engineering'],hiringSignals:['3 Senior DevOps Engineer roles posted (LinkedIn - 45D)','Platform Engineering Manager role active (LinkedIn - 45D)'],techStack:['PHP','Symfony','Node.js','Heroku','GCP'],competitor:'Heroku',meetingBookedAt:null,touches:1,hq:'Boston, MA',linkedinUrl:'https://www.linkedin.com/company/salsify',timeline:[{date:'2026-02-20',type:'added',text:'Account added to workspace'},{date:'2026-02-25',type:'hiring',text:'3 DevOps Engineer roles detected (LinkedIn - 45D)'},{date:'2026-03-01',type:'signal',text:'Intent spike: PaaS → High'}]},
+  {id:4,status:'New',company:'Lush Cosmetics',domain:'lush.com',industry:'eCommerce / Retail',icpCategory:'Manufacturing',size:'1,000–5,000 employees',location:'Poole, UK',description:'Global retailer of handmade cosmetics with digital commerce across 50+ markets.',icpScore:79,icpReason:'Possible fit: Magento/PHP stack aligns well. On Acquia — switching angle available. eCommerce is a solid secondary vertical. Intent signals moderate.',intentSignals:{paas:'Medium',cloudApp:'Low'},personas:['Director of Engineering','Manager of Cloud Infrastructure','Director of Digital Experience'],hiringSignals:['No recent signals'],techStack:['Magento','PHP','Acquia','Symfony'],competitor:'Acquia',meetingBookedAt:null,touches:0,hq:'Poole, UK',linkedinUrl:'https://www.linkedin.com/company/lush-fresh-handmade-cosmetics',timeline:[{date:'2026-03-01',type:'added',text:'Account added to workspace'}]},
+  {id:5,status:'New',company:'University of Southern California',domain:'usc.edu',industry:'Higher Education',icpCategory:'Higher Ed',size:'10,000+ employees',location:'Los Angeles, CA',description:'Major private research university with complex multi-site web infrastructure.',icpScore:73,icpReason:'Higher Ed vertical is a fit but lower intent signals. WordPress multi-site on Acquia. Possible candidate if timing aligns with contract renewal cycle.',intentSignals:{paas:'Low',cloudApp:'Medium'},personas:['CIO','Director of Web','Director of Digital Experience','Manager of Platform Engineering'],hiringSignals:['1 Web Infrastructure Engineer role posted (LinkedIn - 45D)'],techStack:['WordPress','PHP','Acquia','AWS'],competitor:'Acquia',meetingBookedAt:null,touches:0,hq:'Los Angeles, CA',linkedinUrl:'https://www.linkedin.com/school/university-of-southern-california',timeline:[{date:'2026-02-10',type:'added',text:'Account added to workspace'},{date:'2026-03-05',type:'hiring',text:'1 Web Infrastructure Engineer role posted (LinkedIn - 45D)'}]},
+  {id:6,status:'In Progress',company:'Deckers Brands',domain:'deckers.com',industry:'Manufacturing / eCommerce',icpCategory:'Manufacturing',size:'5,000+ employees',location:'Goleta, CA',description:'Parent company of UGG, HOKA, Teva — multiple eCommerce storefronts across brands.',icpScore:61,icpReason:'Possible fit: Multi-brand Magento architecture could benefit from environment cloning. On Adobe Commerce Cloud — tough but winnable conversation. Manufacturing is secondary ICP. Intent signals low.',intentSignals:{paas:'Low',cloudApp:'Low'},personas:['Director of Engineering','CTO','Manager of Cloud Infrastructure','Director of Digital Experience'],hiringSignals:['2 DevOps Engineer roles posted (LinkedIn - 45D)','1 Cloud Architect opening (LinkedIn - 45D)'],techStack:['Magento','PHP','Adobe Commerce Cloud','Azure'],competitor:'Adobe Commerce Cloud',meetingBookedAt:null,touches:2,hq:'Goleta, CA',linkedinUrl:'https://www.linkedin.com/company/deckers-brands',timeline:[{date:'2026-01-20',type:'added',text:'Account added to workspace'},{date:'2026-02-15',type:'hiring',text:'2 DevOps Engineer roles detected (LinkedIn - 45D)'},{date:'2026-03-01',type:'email',text:'Quick Outreach email generated'},{date:'2026-03-05',type:'status',text:'Status changed: New → In Progress'}]},
+];
+
+const LOOKALIKE_POOL=[
+  {id:'ll1',company:'Skillsoft',domain:'skillsoft.com',icpCategory:'SaaS',industry:'SaaS / EdTech',techStack:['PHP','Node.js','Heroku'],competitor:'Heroku',icpScore:88},
+  {id:'ll2',company:'Coursera',domain:'coursera.org',icpCategory:'SaaS',industry:'SaaS / EdTech',techStack:['Python','Node.js','AWS'],competitor:null,icpScore:79},
+  {id:'ll3',company:'Brightspace',domain:'brightspace.com',icpCategory:'SaaS',industry:'SaaS / EdTech',techStack:['PHP','Symfony','Heroku'],competitor:'Heroku',icpScore:85},
+  {id:'ll4',company:'Penn State University',domain:'psu.edu',icpCategory:'Higher Ed',industry:'Higher Education',techStack:['Drupal','PHP','Pantheon'],competitor:'Pantheon',icpScore:82},
+  {id:'ll5',company:'Shopify Partners',domain:'shopify.com',icpCategory:'SaaS',industry:'SaaS / eCommerce',techStack:['Ruby','PHP','GCP'],competitor:null,icpScore:75},
+];
+
+function deepClone(arr){return JSON.parse(JSON.stringify(arr));}
+
+function calcDeal(acc){
+  if(acc.status==='Meeting Booked') return 85;
+  if(acc.status==='Dead') return 5;
+  let s=(acc.icpScore/100)*35;
+  const p=acc.intentSignals?.paas||'Low';
+  const c=acc.intentSignals?.cloudApp||'Low';
+  s+=p==='High'?10:p==='Medium'?5:1;
+  s+=c==='High'?8:c==='Medium'?4:1;
+  const hasHiring=acc.hiringSignals&&acc.hiringSignals.length>0&&acc.hiringSignals[0]!=='No recent signals';
+  s+=hasHiring?8:0;
+  s+=acc.competitor?7:0;
+  s+=Math.min((acc.touches||0)*2,10);
+  return Math.max(5,Math.min(90,Math.round(s)));
+}
+
+function getTechColor(tech){
+  const m={
+    'PHP':'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200',
+    'Node.js':'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+    'Python':'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+    'Go':'bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200',
+    'Java':'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
+    'Ruby':'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+    'Symfony':'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
+    'Drupal':'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+    'WordPress':'bg-sky-100 text-sky-800 dark:bg-sky-900 dark:text-sky-200',
+    'Magento':'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
+    'React':'bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200',
+    'Heroku':'bg-violet-100 text-violet-800 dark:bg-violet-900 dark:text-violet-200',
+    'Pantheon':'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
+    'Acquia':'bg-rose-100 text-rose-800 dark:bg-rose-900 dark:text-rose-200',
+    'AWS':'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200',
+    'GCP':'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+    'Azure':'bg-sky-100 text-sky-800 dark:bg-sky-900 dark:text-sky-200',
+    'Adobe Commerce Cloud':'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+    'Vercel':'bg-slate-100 text-slate-800 dark:bg-slate-700 dark:text-slate-200',
+    'WP Engine':'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+  };
+  return m[tech]||'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200';
+}
+
+function getStatusStyle(s){
+  if(s==='Meeting Booked') return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+  if(s==='In Progress') return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
+  if(s==='Dead') return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
+  return 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300';
+}
+
+function getIntentStyle(v){
+  if(v==='High') return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200';
+  if(v==='Medium') return 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200';
+  return 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300';
+}
+
+function getDealBg(v){
+  if(v>=60) return 'bg-green-500';
+  if(v>=35) return 'bg-amber-500';
+  return 'bg-red-500';
+}
+
+function getIcpBarColor(s){
+  if(s>=80) return 'bg-green-500';
+  if(s>=60) return 'bg-amber-500';
+  return 'bg-red-500';
+}
+
+function getIcpLabel(s){
+  if(s>=80) return 'Strong Fit';
+  if(s>=60) return 'Possible Fit';
+  return 'Poor Fit';
+}
+
+function getIcpTextColor(s){
+  if(s>=80) return 'text-green-600 dark:text-green-400';
+  if(s>=60) return 'text-amber-600 dark:text-amber-400';
+  return 'text-red-600 dark:text-red-400';
+}
+
+function getCategoryStyle(c){
+  if(c==='SaaS') return 'bg-violet-100 text-violet-800 dark:bg-violet-900 dark:text-violet-200';
+  if(c==='Higher Ed') return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
+  if(c==='Manufacturing') return 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200';
+  return 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300';
+}
+
+const PERSONA_PAINS={
+  'VP of Engineering':'High spend on AI tools but Time-to-Market has not improved — frame around deployment pipeline keeping up with code velocity',
+  'CTO':'High spend on AI tools but Time-to-Market has not improved — frame around deployment pipeline keeping up with code velocity',
+  'Director of Engineering':'Teams finish tasks fast but deployment queue is backed up — environment spin-up bottleneck',
+  'Manager of Engineering':'Teams finish tasks fast but deployment queue is backed up — environment spin-up bottleneck',
+  'Director of Platform Engineering':'Maintaining internal tooling instead of building product — PaaS offloads that',
+  'Manager of Platform Engineering':'Maintaining internal tooling instead of building product — PaaS offloads that',
+  'Director of Cloud Infrastructure':'Environment sprawl and per-project infra config overhead — simplify with standardized PaaS',
+  'Manager of Cloud Infrastructure':'Environment sprawl and per-project infra config overhead — simplify with standardized PaaS',
+  'CIO':'Security, isolation, audit trail, compliance needs — enterprise-grade governance',
+  'CISO':'Security, isolation, audit trail, compliance needs — enterprise-grade governance',
+  'Director of Digital Experience':'Slow staging environments, deploy wait times, IT ticket dependency — self-serve staging',
+  'Director of Web':'Slow staging environments, deploy wait times, IT ticket dependency — self-serve staging',
+};
+
+function getPersonaPain(persona){
+  for(const[k,v] of Object.entries(PERSONA_PAINS)){
+    if(persona.toLowerCase().includes(k.toLowerCase())) return v;
+  }
+  return 'Infrastructure complexity slowing down delivery cycles — modern PaaS unblocks this';
+}
+
+function buildSubjectLine(acc){
+  if(acc.competitor){
+    const opts=[`re: your ${acc.competitor} setup`,`following up on the ${acc.competitor} conversation`,`re: switching off ${acc.competitor}`];
+    return opts[acc.id%3];
+  }
+  const hs=acc.hiringSignals&&acc.hiringSignals.length>0&&acc.hiringSignals[0]!=='No recent signals';
+  if(hs){
+    const opts=['re: your DevOps hiring','re: your infrastructure team build-out','your platform engineering roadmap'];
+    return opts[acc.id%3];
+  }
+  const opts=['re: your infrastructure roadmap','quick thought on your stack','your deployment pipeline — quick q','re: what came up in our last call','thought you\'d find this relevant'];
+  return opts[acc.id%5];
+}
+
+function calcSentiment(body,acc){
+  let personalization=50;
+  if(body.toLowerCase().includes(acc.company.toLowerCase())) personalization+=15;
+  const hs=acc.hiringSignals&&acc.hiringSignals.length>0&&acc.hiringSignals[0]!=='No recent signals';
+  if(hs&&(body.toLowerCase().includes('hiring')||body.toLowerCase().includes('engineer')||body.toLowerCase().includes('devops'))) personalization+=15;
+  if(acc.competitor&&body.toLowerCase().includes(acc.competitor.toLowerCase())) personalization+=10;
+  if(acc.techStack&&acc.techStack.some(t=>body.toLowerCase().includes(t.toLowerCase()))) personalization+=10;
+  personalization=Math.min(97,personalization);
+
+  let urgency=40;
+  ['now','timing','this quarter','window','currently','today','soon'].forEach(w=>{if(body.toLowerCase().includes(w)) urgency+=8;});
+  if(acc.intentSignals?.paas==='High'||acc.intentSignals?.cloudApp==='High') urgency+=15;
+  urgency=Math.min(94,urgency);
+
+  let clarity=65;
+  if(['worth','open to','15 minutes','15 min','quick call','chat'].some(w=>body.toLowerCase().includes(w))) clarity+=15;
+  if(body.length>1200) clarity-=10;
+  clarity=Math.min(96,clarity);
+
+  return {personalization,urgency,clarity};
+}
+
+function buildOutreachEmail(acc){
+  const subj=buildSubjectLine(acc);
+  const hs=acc.hiringSignals&&acc.hiringSignals.length>0&&acc.hiringSignals[0]!=='No recent signals';
+  const mainTech=acc.techStack&&acc.techStack.length>0?acc.techStack[0]:'';
+  let body='Hi [Name],\n\n';
+  if(hs){
+    body+=`I noticed ${acc.company} has been ${acc.hiringSignals[0].toLowerCase()} — that usually signals an infrastructure scaling moment worth a conversation.\n\n`;
+  } else {
+    body+=`Came across ${acc.company} and thought it was worth a quick note.\n\n`;
+  }
+  if(acc.competitor){
+    body+=`A lot of teams are moving off ${acc.competitor} — mainly for reasons around environment management, resource-based pricing, and developer workflow. ${mainTech?`For ${mainTech} teams especially, t`:'T'}here is usually a pretty tangible difference worth walking through.\n\n`;
+  } else {
+    body+=`${mainTech?`For ${mainTech} teams, `:''}there are a few things worth comparing when it comes to deployment pipeline efficiency and environment management.\n\n`;
+  }
+  body+=`Happy to share what this looks like for a team like yours — check out upsun.com or worth 15 minutes to connect?\n\nBest,\n[Your Name]`;
+  return {subject:subj,body};
+}
+
+function buildPersonaEmail(acc,persona){
+  const subj=buildSubjectLine(acc);
+  const pain=getPersonaPain(persona);
+  const hs=acc.hiringSignals&&acc.hiringSignals.length>0&&acc.hiringSignals[0]!=='No recent signals';
+  let body='Hi [Name],\n\n';
+  if(hs){
+    body+=`Saw ${acc.company} is ${acc.hiringSignals[0].toLowerCase()} — for a ${persona}, that usually means the platform conversation is already happening internally.\n\n`;
+  } else {
+    body+=`Reaching out because ${acc.company}'s stack caught my attention — specifically for a ${persona} conversation.\n\n`;
+  }
+  body+=`The main thing I hear from ${persona}s right now: "${pain.split('—')[0].trim()}" — and it tends to slow down everything downstream.\n\n`;
+  if(acc.competitor){
+    body+=`Given you are on ${acc.competitor}, there are a few specific angles worth comparing. Happy to walk you through what this looks like for your stack — check out upsun.com/[relevant topic] or just reply here.\n\n`;
+  } else {
+    body+=`Happy to walk you through what this looks like for ${acc.techStack&&acc.techStack[0]?acc.techStack[0]+' teams':acc.company} — see upsun.com for details, or worth a quick 15-minute chat?\n\n`;
+  }
+  body+='Best,\n[Your Name]';
+  return {subject:subj,body};
+}
+
+// ========== UI PRIMITIVES ==========
+
+function ModalShell({onClose,children,maxWidth}){
+  const mw=maxWidth||'max-w-2xl';
+  useEffect(()=>{
+    const h=(e)=>{if(e.key==='Escape') onClose();};
+    window.addEventListener('keydown',h);
+    return ()=>window.removeEventListener('keydown',h);
+  },[onClose]);
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{background:'rgba(0,0,0,0.6)'}} onClick={onClose}>
+      <div className={`bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full ${mw} max-h-[92vh] overflow-y-auto modal-fade`} onClick={e=>e.stopPropagation()}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function SentimentBar({label,value}){
+  const barColor=value>=70?'bg-green-500':value>=50?'bg-amber-500':'bg-red-500';
+  const textColor=value>=70?'text-green-600 dark:text-green-400':value>=50?'text-amber-600 dark:text-amber-400':'text-red-600 dark:text-red-400';
+  let tip=null;
+  if(label==='Personalization'&&value<60) tip='Tip: Add a specific reference to their tech stack or hiring signals';
+  if(label==='Urgency'&&value<60) tip='Tip: Reference a recent trigger event or timing hook';
+  if(label==='Clarity'&&value<60) tip="Tip: Add a clear, low-friction CTA like 'worth 15 minutes?'";
+  return (
+    <div className="mb-3">
+      <div className="flex justify-between text-xs mb-1">
+        <span className="text-slate-600 dark:text-slate-400 font-medium">{label}</span>
+        <span className={`font-bold ${textColor}`}>{value}</span>
+      </div>
+      <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2">
+        <div className={`${barColor} h-2 rounded-full transition-all`} style={{width:`${value}%`}}/>
+      </div>
+      {tip&&<p className="text-xs text-amber-600 dark:text-amber-400 mt-1 italic">{tip}</p>}
+    </div>
+  );
+}
+
+function FeedbackButtons({id}){
+  const [fb,setFb]=useState(null);
+  return (
+    <div className="flex items-center gap-2">
+      <button onClick={()=>setFb('up')} className={`text-lg transition-transform hover:scale-125 ${fb==='up'?'opacity-100':'opacity-40'}`}>👍</button>
+      <button onClick={()=>setFb('down')} className={`text-lg transition-transform hover:scale-125 ${fb==='down'?'opacity-100':'opacity-40'}`}>👎</button>
+      {fb==='up'&&<span className="text-xs font-bold text-amber-500">⭐ High Performer</span>}
+    </div>
+  );
+}
+
+function CopyBtn({text,label}){
+  const [copied,setCopied]=useState(false);
+  const lbl=label||'Copy';
+  return (
+    <button onClick={()=>{navigator.clipboard.writeText(text).then(()=>{setCopied(true);setTimeout(()=>setCopied(false),2000);});}}
+      className="text-xs px-3 py-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-lg transition-colors">
+      {copied?'✓ Copied!':lbl}
+    </button>
+  );
+}
+
+// ========== MODALS ==========
+
+function PersonaEmailModal({acc,persona,onClose}){
+  const {subject,body}=buildPersonaEmail(acc,persona);
+  const sent=calcSentiment(body,acc);
+  return (
+    <ModalShell onClose={onClose}>
+      <div className="p-6">
+        <div className="flex items-start justify-between mb-4">
+          <div>
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white">{persona}</h2>
+            <p className="text-sm text-slate-500">{acc.company}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs px-2 py-1 bg-violet-100 text-violet-800 dark:bg-violet-900 dark:text-violet-200 rounded-full font-semibold">Persona Email</span>
+            <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-2xl font-bold leading-none">×</button>
+          </div>
+        </div>
+        <div className="mb-3">
+          <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Subject Line</label>
+          <div className="mt-1 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-xl text-sm font-medium border border-slate-200 dark:border-slate-600">{subject}</div>
+        </div>
+        <div className="mb-4">
+          <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Email Body</label>
+          <div className="mt-1 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-xl text-sm whitespace-pre-wrap border border-slate-200 dark:border-slate-600 leading-relaxed">{body}</div>
+        </div>
+        <div className="flex items-center justify-between mb-5">
+          <FeedbackButtons id={`pe-${acc.id}-${persona}`}/>
+          <CopyBtn text={`Subject: ${subject}\n\n${body}`}/>
+        </div>
+        <div className="border-t border-slate-200 dark:border-slate-700 pt-4">
+          <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-3">Sentiment Scores</p>
+          <SentimentBar label="Personalization" value={sent.personalization}/>
+          <SentimentBar label="Urgency" value={sent.urgency}/>
+          <SentimentBar label="Clarity" value={sent.clarity}/>
+        </div>
+      </div>
+    </ModalShell>
+  );
+}
+
+function OutreachEmailModal({acc,onClose}){
+  const {subject,body}=buildOutreachEmail(acc);
+  const sent=calcSentiment(body,acc);
+  const hs=acc.hiringSignals&&acc.hiringSignals.length>0&&acc.hiringSignals[0]!=='No recent signals';
+  return (
+    <ModalShell onClose={onClose}>
+      <div className="p-6">
+        <div className="flex items-start justify-between mb-4">
+          <div>
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white">Quick Outreach Email</h2>
+            <p className="text-sm text-slate-500">{acc.company}</p>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap justify-end">
+            <span className="text-xs px-2 py-1 bg-violet-100 text-violet-800 dark:bg-violet-900 dark:text-violet-200 rounded-full font-semibold">AI-Generated</span>
+            {acc.competitor&&<span className="text-xs px-2 py-1 bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 rounded-full font-semibold">Switching Angle</span>}
+            <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-2xl font-bold leading-none">×</button>
+          </div>
+        </div>
+        <div className="bg-slate-50 dark:bg-slate-700/40 rounded-xl p-3 mb-4 text-xs space-y-0.5">
+          <p className="font-semibold text-slate-600 dark:text-slate-300 mb-1">Signals used:</p>
+          <p className="text-slate-500 dark:text-slate-400">• ICP Score: {acc.icpScore}/100 — {getIcpLabel(acc.icpScore)}</p>
+          <p className="text-slate-500 dark:text-slate-400">• Intent: PaaS={acc.intentSignals?.paas}, Cloud App={acc.intentSignals?.cloudApp}</p>
+          {acc.techStack&&<p className="text-slate-500 dark:text-slate-400">• Tech: {acc.techStack.join(', ')}</p>}
+          {hs&&<p className="text-slate-500 dark:text-slate-400">• Hiring: {acc.hiringSignals[0]}</p>}
+          {acc.competitor&&<p className="text-slate-500 dark:text-slate-400">• Competitor: {acc.competitor}</p>}
+        </div>
+        <div className="mb-3">
+          <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Subject Line</label>
+          <div className="mt-1 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-xl text-sm font-medium border border-slate-200 dark:border-slate-600">{subject}</div>
+        </div>
+        <div className="mb-4">
+          <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Email Body</label>
+          <div className="mt-1 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-xl text-sm whitespace-pre-wrap border border-slate-200 dark:border-slate-600 leading-relaxed">{body}</div>
+        </div>
+        <div className="flex items-center justify-between mb-5">
+          <FeedbackButtons id={`or-${acc.id}`}/>
+          <CopyBtn text={`Subject: ${subject}\n\n${body}`}/>
+        </div>
+        <div className="border-t border-slate-200 dark:border-slate-700 pt-4">
+          <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-3">Sentiment Scores</p>
+          <SentimentBar label="Personalization" value={sent.personalization}/>
+          <SentimentBar label="Urgency" value={sent.urgency}/>
+          <SentimentBar label="Clarity" value={sent.clarity}/>
+        </div>
+      </div>
+    </ModalShell>
+  );
+}
+
+function buildCadenceEmails(acc){
+  const hs=acc.hiringSignals&&acc.hiringSignals.length>0&&acc.hiringSignals[0]!=='No recent signals';
+  const persona=acc.personas&&acc.personas[0]||'Director of Engineering';
+  const pain=getPersonaPain(persona);
+  const subj1=hs?`re: ${acc.hiringSignals[0].toLowerCase().substring(0,45)}`:`re: your ${acc.competitor?acc.competitor+' setup':'infrastructure roadmap'}`;
+  const subj2=`re: the ${persona.toLowerCase()} challenge at ${acc.company}`;
+  const subj3=acc.competitor?`re: switching off ${acc.competitor}`:'teams like yours on Upsun';
+  const subj4='still worth connecting?';
+  const body1=`Hi [Name],\n\n${hs?`Noticed ${acc.company} has been ${acc.hiringSignals[0].toLowerCase()} — that is usually a sign the infrastructure conversation is already on the table internally.`:`Came across ${acc.company} and thought the timing might be right for a quick chat.`}\n\nHappy to share what teams in your space are doing differently. Worth 15 minutes?\n\nBest,\n[Your Name]`;
+  const body2=`Hi [Name],\n\nFollowing up on my last note. The main thing I hear from ${persona}s right now: "${pain.split('—')[0].trim()}."\n\nFor ${acc.techStack&&acc.techStack[0]?acc.techStack[0]+' teams':'your stack'}, there is usually a pretty direct way to unblock that. Happy to walk through it — see upsun.com or just reply here.\n\nBest,\n[Your Name]`;
+  const body3=acc.competitor?`Hi [Name],\n\nA lot of teams have been moving off ${acc.competitor} — mainly around environment management, data cloning flexibility, and resource-based pricing.\n\nHappy to share a quick compare. Worth 15 minutes?\n\nBest,\n[Your Name]`:`Hi [Name],\n\nWanted to share a quick note on what teams similar to ${acc.company} are doing to accelerate deployment cycles — no pitch, just a benchmark conversation.\n\nWorth a quick 15 minutes?\n\nBest,\n[Your Name]`;
+  const body4=`Hi [Name],\n\nI will keep this short — is infrastructure platform strategy on your radar for this quarter, or should I circle back in a few months?\n\nEither answer is totally fine — just want to make sure I am reaching out at the right time.\n\nBest,\n[Your Name]`;
+  return [
+    {tag:'Email 1',angle:'Recent Trigger / Hiring Hook',borderColor:'border-blue-500',bg:'bg-blue-50 dark:bg-blue-900/20',subject:subj1,body:body1},
+    {tag:'Email 2',angle:'Pain Point — Role & Stack Specific',borderColor:'border-orange-500',bg:'bg-orange-50 dark:bg-orange-900/20',subject:subj2,body:body2},
+    {tag:'Email 3',angle:acc.competitor?'Social Proof / Competitor Switching':'Social Proof / Adoption Angle',borderColor:'border-green-500',bg:'bg-green-50 dark:bg-green-900/20',subject:subj3,body:body3},
+    {tag:'Email 4',angle:'Soft Re-engage / Breakup',borderColor:'border-slate-400',bg:'bg-slate-50 dark:bg-slate-700/20',subject:subj4,body:body4},
+  ];
+}
+
+function CadenceModal({acc,onClose}){
+  const emails=buildCadenceEmails(acc);
+  return (
+    <ModalShell onClose={onClose} maxWidth="max-w-3xl">
+      <div className="p-6">
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white">Cadence Creator</h2>
+            <p className="text-sm text-slate-500">{acc.company} · {acc.personas&&acc.personas[0]}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs px-2 py-1 bg-violet-100 text-violet-800 dark:bg-violet-900 dark:text-violet-200 rounded-full font-semibold">4-Email Sequence</span>
+            <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-2xl font-bold leading-none">×</button>
+          </div>
+        </div>
+        <div className="space-y-4">
+          {emails.map((e,i)=>(
+            <div key={i} className={`border-l-4 ${e.borderColor} ${e.bg} rounded-r-xl p-4`}>
+              <div className="flex items-start justify-between mb-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">{e.tag}</span>
+                  <span className="text-xs px-2 py-0.5 bg-white dark:bg-slate-700 rounded-full text-slate-600 dark:text-slate-300 font-medium">{e.angle}</span>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <FeedbackButtons id={`cad-${acc.id}-${i}`}/>
+                  <CopyBtn text={`Subject: ${e.subject}\n\n${e.body}`}/>
+                </div>
+              </div>
+              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Subject: <span className="font-normal text-slate-700 dark:text-slate-200">{e.subject}</span></p>
+              <p className="text-sm text-slate-700 dark:text-slate-200 whitespace-pre-wrap leading-relaxed">{e.body}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </ModalShell>
+  );
+}
+
+function buildAccountPlan(acc){
+  const today=new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
+  const languages=['PHP','Node.js','Python','Go','Java','Ruby'].filter(t=>acc.techStack?.includes(t));
+  const frameworks=['Symfony','Drupal','WordPress','Magento','React'].filter(t=>acc.techStack?.includes(t));
+  const cloud=['AWS','GCP','Azure','Heroku','Pantheon','Acquia','Adobe Commerce Cloud','Vercel','WP Engine'].filter(t=>acc.techStack?.includes(t));
+  const cms=['WordPress','Magento','Drupal','Adobe Commerce Cloud'].filter(t=>acc.techStack?.includes(t));
+  const hs=acc.hiringSignals&&acc.hiringSignals.length>0&&acc.hiringSignals[0]!=='No recent signals';
+  const icpLabel=acc.icpScore>=80?'Strategic Account':acc.icpScore>=60?'Target Account':'Watch List';
+  const expansion=acc.size?.includes('10,000')||acc.size?.includes('5,000')?'High':'Medium';
+  const p1=acc.personas&&acc.personas[0]||'Director of Engineering';
+  const p2=acc.personas&&acc.personas[1]||'VP of Engineering';
+  const pain1=getPersonaPain(p1).split('—')[0].trim();
+  const pain2=getPersonaPain(p2).split('—')[0].trim();
+  const angle1=getPersonaPain(p1).split('—')[1]?.trim()||'Deployment pipeline efficiency';
+  const angle2=getPersonaPain(p2).split('—')[1]?.trim()||'Code velocity alignment';
+  const vertScore=acc.icpCategory==='SaaS'?3:acc.icpCategory==='Higher Ed'?3:2;
+  const headScore=acc.size?.includes('10,000')?3:acc.size?.includes('5,000')?3:acc.size?.includes('1,000')?2:2;
+  const geoScore=acc.location?.includes('CA')||acc.location?.includes('MA')||acc.location?.includes('AZ')||acc.location?.includes('NY')?3:2;
+  const techScore=(acc.techStack?.length||0)>=4?3:(acc.techStack?.length||0)>=2?2:1;
+  const driverScore=(acc.intentSignals?.paas==='High'||hs)?3:(acc.intentSignals?.paas==='Medium')?2:1;
+  const totalScore=vertScore+headScore+geoScore+techScore+driverScore;
+  const planTier=totalScore>=12?'Strategic':totalScore>=8?'Target':'Watch List';
+  const pad=(s,n)=>String(s||'').substring(0,n).padEnd(n);
+
+  return `ACCOUNT PLAN: ${acc.company}
+${'━'.repeat(40)}
+
+Owner: ________________  BDR: ________________
+SA: ________________     CSM: ________________
+Date: ${today}
+Plan Type: New Logo
+
+${'━'.repeat(40)}
+
+I. EXECUTIVE SUMMARY
+Business Value Hypothesis:
+${acc.company} operates in ${acc.industry} and currently runs ${acc.techStack?.slice(0,3).join(', ')||'a multi-tier stack'}${acc.competitor?` on ${acc.competitor}`:''}.${hs?` Recent infrastructure hiring signals an active investment in platform modernization.`:''} The primary opportunity is around ${acc.competitor?`migrating off ${acc.competitor} and`:'leveraging'} a modern PaaS approach to accelerate deployment velocity and reduce infrastructure overhead. See upsun.com for full capability details — do not fabricate product claims.
+
+${'━'.repeat(40)}
+
+II. ACCOUNT OVERVIEW
+
+Commercial Standing
+  Current ARR:              [TBD]
+  Contract Renewal Date:    [TBD]
+  Account Health Score:     ${acc.icpScore}/100 — ${icpLabel}
+  Expansion Potential:      ${expansion}
+
+Current Frameworks:         ${frameworks.length?frameworks.join(', '):'[TBD]'}
+Cloud Infrastructure:       ${cloud.length?cloud.join(', '):'[TBD]'}
+Programming Languages:      ${languages.length?languages.join(', '):'[TBD]'}
+CMS:                        ${cms.length?cms.join(', '):'[TBD]'}
+
+Technology Category Table:
+┌─────────────────────┬──────────────────────────────┐
+│ Category            │ Technologies                  │
+├─────────────────────┼──────────────────────────────┤
+│ Languages           │ ${pad(languages.join(', ')||'[TBD]',29)}│
+│ Frameworks          │ ${pad(frameworks.join(', ')||'[TBD]',29)}│
+│ Cloud/Infra         │ ${pad(cloud.join(', ')||'[TBD]',29)}│
+│ CMS & Commerce      │ ${pad(cms.join(', ')||'[TBD]',29)}│
+│ Current Platform    │ ${pad(acc.competitor||'TBD',29)}│
+└─────────────────────┴──────────────────────────────┘
+
+Key Points of Contact:
+┌──────────────────────┬──────────────────┬───────────────┬───────────┐
+│ Role                 │ Name             │ Title         │ Sentiment │
+├──────────────────────┼──────────────────┼───────────────┼───────────┤
+│ Executive Sponsor    │ TBD              │ ${pad(p1,13)}│ Unknown   │
+│ Technical Champion   │ TBD              │ ${pad(p2,13)}│ Unknown   │
+│ Procurement/Finance  │ TBD              │               │ Unknown   │
+└──────────────────────┴──────────────────┴───────────────┴───────────┘
+
+${'━'.repeat(40)}
+
+III. ACCOUNT BUSINESS MODEL ANALYSIS
+Primary Revenue Stream: ${acc.industry?.includes('SaaS')?'Subscription / recurring SaaS revenue':acc.industry?.includes('eCommerce')||acc.industry?.includes('Retail')?'Direct-to-consumer eCommerce transactions':acc.industry?.includes('Education')?'Tuition, grants, and digital services':'[Based on industry research]'}
+Strategic Business Implications:
+Faster deployment cycles directly impact ${acc.company}'s ability to ship product improvements and respond to market changes. Cloud platform reliability and scalability are core infrastructure requirements. See upsun.com for how modern PaaS supports these requirements — verify all capability claims before use.
+
+${'━'.repeat(40)}
+
+IV. STRATEGIC INITIATIVES & INTELLIGENCE
+┌──────────────────────────────┬──────────────────┬─────────────────────────────────┐
+│ Initiative                   │ Source           │ Description                     │
+├──────────────────────────────┼──────────────────┼─────────────────────────────────┤
+│ ${pad(hs?acc.hiringSignals[0].substring(0,28):'Infrastructure Modernization',28)}│ ${pad(hs?'LinkedIn - 45D':'Intent Data',16)}│ ${pad(hs?acc.hiringSignals[0].substring(0,31):'Infrastructure investment signal',31)}│
+│ Cloud Infrastructure         │ Intent Data      │ PaaS: ${acc.intentSignals?.paas||'Low'}, CloudApp: ${acc.intentSignals?.cloudApp||'Low'}             │
+│ Platform Modernization       │ Tech Stack       │ Currently on ${pad(acc.competitor||'[TBD]',19)}│
+└──────────────────────────────┴──────────────────┴─────────────────────────────────┘
+
+${'━'.repeat(40)}
+
+V. UPSUN VALUE ALIGNMENT
+Innovation Velocity:    ${acc.techStack?.length>=3?'Complex multi-framework stack — see upsun.com/features for developer workflow capabilities':'See upsun.com/features — verify claims before use'}
+TCO Reduction:          ${acc.competitor?`Currently on ${acc.competitor} — frame TCO comparison as a question: "What does your current monthly infra spend look like?" Verify savings data at upsun.com`:'Frame as a question: "What does your current infrastructure cost look like per environment?" Do not fabricate savings numbers.'}
+Sustainability (ESG):   ${acc.size?.includes('10,000')||acc.size?.includes('5,000')?'Enterprise account — reference upsun.com/sustainability for ESG positioning':'See upsun.com/sustainability if relevant to stakeholder priorities'}
+
+${'━'.repeat(40)}
+
+VI. ICP FIT & QUALIFICATION
+┌───────────────────┬────────────┬──────────────────────────────────────┐
+│ Factor            │ Score (1-3)│ Rationale                            │
+├───────────────────┼────────────┼──────────────────────────────────────┤
+│ Vertical Alignment│ ${vertScore}          │ ${pad(acc.industry?.substring(0,36)||'[Industry]',36)}│
+│ Headcount (FTEs)  │ ${headScore}          │ ${pad(acc.size||'[TBD]',36)}│
+│ Geography         │ ${geoScore}          │ ${pad(acc.location||'[TBD]',36)}│
+│ Tech Complexity   │ ${techScore}          │ ${(acc.techStack?.length||0)} technologies detected                  │
+│ Strategic Drivers │ ${driverScore}          │ ${pad(acc.intentSignals?.paas==='High'?'High PaaS intent + signals':acc.intentSignals?.paas==='Medium'?'Medium intent signals':'Low current signals',36)}│
+├───────────────────┼────────────┼──────────────────────────────────────┤
+│ TOTAL SCORE       │ ${totalScore}/15     │ ${planTier} Account                       │
+└───────────────────┴────────────┴──────────────────────────────────────┘
+
+${'━'.repeat(40)}
+
+VII. STAKEHOLDER MAPPING & MESSAGING
+┌─────────────────────────────────┬──────────────────────────┬──────────────────────────┐
+│ Persona                         │ Key Pain                 │ Winning Message Frame     │
+├─────────────────────────────────┼──────────────────────────┼──────────────────────────┤
+│ ${pad(p1,31)}│ ${pad(pain1,24)}│ ${pad(angle1,25)}│
+│ ${pad(p2,31)}│ ${pad(pain2,24)}│ ${pad(angle2,25)}│
+└─────────────────────────────────┴──────────────────────────┴──────────────────────────┘
+
+${'━'.repeat(40)}
+
+VIII. COMPETITIVE & DISPLACEMENT STRATEGY
+Incumbent(s): ${acc.competitor||'None detected'}
+Displacement Levers: ${acc.competitor?`Frame as discovery questions — ask what frustrations exist with ${acc.competitor} before proposing anything. Verify displacement data at upsun.com — do not fabricate migration claims.`:'No incumbent identified. Focus on greenfield value and time-to-production story. See upsun.com for messaging guidance.'}
+
+${'━'.repeat(40)}
+
+IX. MUTUAL ACTION PLAN (MAP)
+  □ QBR / Success Review
+  □ Gap Assessment
+  □ Developer Workshop
+  □ Governance Review
+  □ Pilot Project / POC
+
+${'━'.repeat(40)}
+Created using the Upsun Strategic Account Planning Framework (v4).`;
+}
+
+function AccountPlanModal({acc,onClose}){
+  const [loading,setLoading]=useState(true);
+  const [msgIdx,setMsgIdx]=useState(0);
+  const msgs=['Researching company...','Mapping tech stack...','Identifying stakeholders...','Building account plan...'];
+  const planText=useMemo(()=>buildAccountPlan(acc),[acc.id]);
+
+  useEffect(()=>{
+    let i=0;
+    const t=setInterval(()=>{
+      i++;
+      if(i<msgs.length) setMsgIdx(i);
+      else{clearInterval(t);setTimeout(()=>setLoading(false),400);}
+    },700);
+    return ()=>clearInterval(t);
+  },[]);
+
+  const handlePrint=()=>{
+    const style=document.createElement('style');
+    style.id='print-style';
+    style.textContent='@media print{body>*{display:none!important}.plan-print-area{display:block!important;position:fixed;top:0;left:0;width:100%;padding:20px;background:white;color:black}}';
+    document.head.appendChild(style);
+    window.onafterprint=()=>{const s=document.getElementById('print-style');if(s)s.remove();};
+    window.print();
+  };
+
+  return (
+    <ModalShell onClose={onClose} maxWidth="max-w-4xl">
+      <div className="plan-print-area"><pre className="whitespace-pre-wrap text-xs">{planText}</pre></div>
+      {loading?(
+        <div className="flex flex-col items-center justify-center py-24 gap-4">
+          <div className="w-12 h-12 border-4 border-violet-500 border-t-transparent rounded-full spin"/>
+          <p className="text-violet-600 dark:text-violet-400 font-medium">{msgs[msgIdx]}</p>
+        </div>
+      ):(
+        <div className="p-6">
+          <div className="flex items-center justify-between mb-5 sticky top-0 bg-white dark:bg-slate-800 py-2 z-10 border-b border-slate-100 dark:border-slate-700">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900 dark:text-white">Account Plan: {acc.company}</h2>
+              <p className="text-xs text-slate-500">Upsun Strategic Account Planning Framework (v4)</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button onClick={handlePrint} className="text-xs px-3 py-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-lg transition-colors">📥 Download PDF</button>
+              <CopyBtn text={planText} label="📋 Copy All Text"/>
+              <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-2xl font-bold leading-none ml-2">×</button>
+            </div>
+          </div>
+          <pre className="whitespace-pre-wrap text-xs text-slate-700 dark:text-slate-300 font-mono leading-relaxed bg-slate-50 dark:bg-slate-700/30 rounded-xl p-4 overflow-x-auto">{planText}</pre>
+        </div>
+      )}
+    </ModalShell>
+  );
+}
+
+function TimelineModal({acc,onClose}){
+  function icon(type){
+    if(type==='added') return <span className="text-blue-500 text-base">⊕</span>;
+    if(type==='signal') return <span className="text-violet-500 text-base">⚡</span>;
+    if(type==='hiring') return <span className="text-amber-500 text-base">👤</span>;
+    if(type==='email') return <span className="text-green-500 text-base">✉</span>;
+    if(type==='status') return <span className="text-slate-500 text-base">→</span>;
+    if(type==='cadence') return <span className="text-violet-500 text-base">☰</span>;
+    return <span className="text-slate-400">•</span>;
+  }
+  return (
+    <ModalShell onClose={onClose}>
+      <div className="p-6">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-lg font-bold text-slate-900 dark:text-white">Timeline — {acc.company}</h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-2xl font-bold leading-none">×</button>
+        </div>
+        <div className="space-y-4">
+          {acc.timeline&&acc.timeline.length>0?acc.timeline.map((ev,i)=>(
+            <div key={i} className="flex items-start gap-3">
+              <div className="mt-0.5 w-6 flex-shrink-0 text-center">{icon(ev.type)}</div>
+              <div className="flex-1">
+                <p className="text-sm text-slate-800 dark:text-slate-200">{ev.text}</p>
+                <p className="text-xs text-slate-400 mt-0.5">{ev.date}</p>
+              </div>
+            </div>
+          )):<p className="text-slate-400 italic text-sm">No timeline events yet.</p>}
+        </div>
+      </div>
+    </ModalShell>
+  );
+}
+
+function ImportModal({onClose,onImport}){
+  const [rows,setRows]=useState(null);
+  const [err,setErr]=useState('');
+  const fileRef=useRef();
+  const handleFile=(e)=>{
+    const f=e.target.files[0];
+    if(!f) return;
+    const reader=new FileReader();
+    reader.onload=(ev)=>{
+      const text=ev.target.result;
+      const lines=text.split('\n').filter(l=>l.trim());
+      if(lines.length<2){setErr('CSV must have a header row and at least one data row.');return;}
+      const headers=lines[0].split(',').map(h=>h.trim().toLowerCase().replace(/"/g,''));
+      const companyKey=headers.find(h=>h.includes('company')||h==='name')||headers[0];
+      const domainKey=headers.find(h=>h.includes('domain')||h.includes('url'));
+      const industryKey=headers.find(h=>h.includes('industry'));
+      const statusKey=headers.find(h=>h.includes('status'));
+      const parsed=lines.slice(1).map((line,i)=>{
+        const cols=line.split(',').map(c=>c.trim().replace(/"/g,''));
+        const obj={};
+        headers.forEach((h,j)=>{obj[h]=cols[j]||'';});
+        return {
+          id:Date.now()+i,
+          company:obj[companyKey]||`Row ${i+1}`,
+          domain:domainKey?obj[domainKey]:'',
+          industry:industryKey?obj[industryKey]:'Unknown',
+          status:statusKey?obj[statusKey]:'New',
+          icpCategory:'SaaS',icpScore:70,
+          icpReason:'Imported account — update ICP details.',
+          intentSignals:{paas:'Medium',cloudApp:'Low'},
+          personas:['Director of Engineering'],
+          hiringSignals:[],techStack:[],competitor:null,
+          meetingBookedAt:null,touches:0,
+          timeline:[{date:new Date().toISOString().split('T')[0],type:'added',text:'Account imported from CSV'}],
+        };
+      });
+      setRows(parsed);
+    };
+    reader.readAsText(f);
+  };
+  return (
+    <ModalShell onClose={onClose} maxWidth="max-w-2xl">
+      <div className="p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-bold text-slate-900 dark:text-white">Import Accounts</h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-2xl font-bold leading-none">×</button>
+        </div>
+        {!rows?(
+          <div>
+            <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">Upload a CSV file. Expected columns: company, domain, industry, status (optional).</p>
+            {err&&<p className="text-sm text-red-500 mb-3">{err}</p>}
+            <input ref={fileRef} type="file" accept=".csv" onChange={handleFile} className="hidden"/>
+            <button onClick={()=>fileRef.current.click()} className="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-lg text-sm font-medium transition-colors">Choose CSV File</button>
+          </div>
+        ):(
+          <div>
+            <p className="text-sm text-slate-600 dark:text-slate-400 mb-3">Preview — {rows.length} accounts found:</p>
+            <div className="max-h-64 overflow-y-auto border border-slate-200 dark:border-slate-700 rounded-xl mb-4">
+              <table className="w-full text-xs">
+                <thead className="bg-slate-50 dark:bg-slate-700 sticky top-0">
+                  <tr>{['Company','Domain','Industry','Status'].map(h=><th key={h} className="text-left px-3 py-2 text-slate-600 dark:text-slate-300">{h}</th>)}</tr>
+                </thead>
+                <tbody>
+                  {rows.map((r,i)=>(
+                    <tr key={i} className="border-t border-slate-100 dark:border-slate-700">
+                      <td className="px-3 py-1.5 text-slate-800 dark:text-slate-200">{r.company}</td>
+                      <td className="px-3 py-1.5 text-slate-500">{r.domain}</td>
+                      <td className="px-3 py-1.5 text-slate-500">{r.industry}</td>
+                      <td className="px-3 py-1.5 text-slate-500">{r.status}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={()=>{onImport(rows);onClose();}} className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors">Import {rows.length} Accounts</button>
+              <button onClick={()=>{setRows(null);setErr('');}} className="px-4 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 rounded-lg text-sm font-medium transition-colors">Back</button>
+            </div>
+          </div>
+        )}
+      </div>
+    </ModalShell>
+  );
+}
+
+function LookalikesModal({accounts,onClose,onAdd}){
+  const [selected,setSelected]=useState('');
+  const [added,setAdded]=useState(new Set());
+  const booked=accounts.filter(a=>a.status==='Meeting Booked');
+  const existing=new Set(accounts.map(a=>a.company));
+  const pool=LOOKALIKE_POOL.filter(l=>!existing.has(l.company));
+  const recs=selected?pool.slice(0,4):[];
+  function handleAdd(l){
+    onAdd(l);
+    setAdded(prev=>new Set([...prev,l.id]));
+  }
+  return (
+    <ModalShell onClose={onClose} maxWidth="max-w-2xl">
+      <div className="p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-bold text-slate-900 dark:text-white">Find Lookalike Accounts</h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-2xl font-bold leading-none">×</button>
+        </div>
+        {booked.length===0?(
+          <p className="text-slate-500 dark:text-slate-400 italic">Book a meeting first to find similar accounts.</p>
+        ):(
+          <div>
+            <div className="mb-4">
+              <label className="text-sm font-medium text-slate-700 dark:text-slate-300 block mb-1">Reference Account (Meeting Booked)</label>
+              <select value={selected} onChange={e=>setSelected(e.target.value)} className="w-full p-2 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-sm focus:outline-none focus:border-violet-400">
+                <option value="">Select a booked account...</option>
+                {booked.map(a=><option key={a.id} value={a.id}>{a.company}</option>)}
+              </select>
+            </div>
+            {selected&&(
+              <div>
+                <p className="text-sm font-semibold text-slate-600 dark:text-slate-400 mb-3">Recommended Accounts</p>
+                {recs.length===0?(
+                  <p className="text-slate-500 italic text-sm">All lookalike accounts are already in your workspace.</p>
+                ):(
+                  <div className="space-y-3">
+                    {recs.map(l=>(
+                      <div key={l.id} className="border border-slate-200 dark:border-slate-700 rounded-xl p-4 flex items-start justify-between gap-3">
+                        <div className="flex-1">
+                          <p className="font-semibold text-slate-800 dark:text-slate-200">{l.company}</p>
+                          <p className="text-xs text-slate-500 mb-1.5">{l.domain} · {l.industry}</p>
+                          <div className="flex flex-wrap gap-1 mb-1.5">
+                            {l.techStack.map(t=><span key={t} className={`text-xs px-1.5 py-0.5 rounded font-medium ${getTechColor(t)}`}>{t}</span>)}
+                          </div>
+                          <p className="text-xs text-slate-500">ICP Match: <span className="text-green-600 dark:text-green-400 font-semibold">{l.icpScore}/100</span></p>
+                        </div>
+                        <button onClick={()=>handleAdd(l)} disabled={added.has(l.id)}
+                          className={`text-xs px-3 py-1.5 rounded-lg transition-colors flex-shrink-0 ${added.has(l.id)?'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300':'bg-violet-600 hover:bg-violet-700 text-white'}`}>
+                          {added.has(l.id)?'✓ Added':'Add to Workspace'}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </ModalShell>
+  );
+}
+
+// ========== AI BRAIN PANEL ==========
+
+const OBJECTION_MAP={
+  'heroku':[
+    "That's a great starting point — Heroku's familiar, and the teams we work with tell us the main things that pushed them to explore alternatives were multi-cloud flexibility, data cloning, and modern developer workflows. Worth a quick compare at upsun.com/vs-heroku?",
+    "Totally makes sense. Quick question: is your team hitting any friction around environment setup time or staging costs? That's usually what starts the conversation.",
+    "Understood. When you think about your infrastructure 18 months from now — what's the one thing you'd want your platform to handle that it doesn't today?",
+  ],
+  'acquia':[
+    "Acquia's a solid enterprise choice. The teams that explore Upsun alongside it usually mention polyglot support and transparent billing as things they're missing. Happy to share more — upsun.com/vs-acquia",
+    "Makes sense — what frameworks is your team running beyond Drupal? That's usually where the conversation gets interesting.",
+  ],
+  'pantheon':[
+    "Pantheon's been around a long time. The conversations we tend to have with Pantheon customers are usually around data cloning, resource-based pricing, and cloud freedom. Worth 15 min to compare?",
+    "Good to know. Is your current contract up for renewal in the next 6-12 months? That's usually the window where teams do a proper evaluation.",
+  ],
+  'budget|expensive|cost':[
+    "Totally fair — when does your next budget cycle open up? The best time to have this conversation is 2-3 months before that window.",
+    "Understood. Out of curiosity — what's the current monthly cost of your hosting/infra setup? We often find teams save significantly after a proper TCO comparison. Happy to walk through the math.",
+  ],
+  'contract|renewal':[
+    "That timing actually works in your favor — the best infrastructure conversations happen 6-12 months before renewal when there's no urgency. Worth doing a 15-min discovery now so you're fully informed at renewal?",
+  ],
+  'just signed|just renewed':[
+    "That timing actually works in your favor — the best infrastructure conversations happen 6-12 months before renewal when there's no urgency. This way you have a benchmark. Worth doing a 15-min discovery now so you're fully informed at renewal?",
+  ],
+};
+
+const DEFAULT_OBJ=[
+  "Great question. What's the underlying concern — is it timing, budget, or something specific about the fit?",
+  "Let's reframe that. What would have to be true for this to be a priority in your next planning cycle?",
+  "That's a fair point. Here's how I'd respond: Lead with curiosity, not defense. Ask 'What does your current setup look like for X?' before proposing anything.",
+];
+
+const CHAT_MAP={
+  'heroku':"Heroku displacement angle: Lead with environment management friction and staging costs. Ask 'How long does it take your team to spin up a new environment?' before pitching anything. Teams moving off Heroku usually cite multi-cloud flexibility and data cloning as top drivers. See upsun.com/vs-heroku for validated positioning.",
+  'acquia':"Acquia angle: The Acquia conversation is usually about polyglot support (teams running more than just Drupal) and billing transparency. Lead with 'What does your infrastructure look like beyond Drupal?' — that opens the conversation naturally. See upsun.com/vs-acquia.",
+  'pantheon':"Pantheon angle: Data cloning, resource-based pricing, and cloud freedom are the main switching levers. Ask about contract renewal timeline first — that tells you how urgent the conversation is. See upsun.com for positioning.",
+  'vercel':"Vercel angle: Usually a frontend-first conversation. The opportunity is with the backend/platform engineering team who needs more flexibility. Ask 'Who owns your backend infrastructure?' before leading with anything.",
+  'budget|expensive|cost':"TCO angle: Never lead with price defense. Instead, ask 'What does your current monthly infra cost look like?' and let the math speak. Teams often find total cost of ownership improves once you factor in environment management overhead and developer time.",
+  'contract|renewal':"Renewal angle: Best time to start this conversation is 6-12 months before renewal — no urgency, full evaluation window. If they just renewed, set a reminder to re-engage 6 months out and focus on benchmarking in the meantime.",
+  'how do i|how should i|what should':"Coaching tip: Lead with curiosity before conviction. The best reps ask at least 2 discovery questions before mentioning Upsun. Try: 'What does your current deployment process look like?' or 'How long does it take to spin up a staging environment?' Those questions surface the pain naturally.",
+};
+
+function AiBrainPanel({open,onClose}){
+  const [tab,setTab]=useState('chat');
+  const [messages,setMessages]=useState([
+    {role:'ai',text:"Hi! I'm your Upsun Sales Expert. I can help with messaging, objection handling, and coaching. You can paste copy, links, or messaging frameworks below to add to my knowledge base."}
+  ]);
+  const [inputVal,setInputVal]=useState('');
+  const [objInput,setObjInput]=useState('');
+  const [objResponses,setObjResponses]=useState([]);
+  const [kb,setKb]=useState([
+    {id:1,title:'Persona Pain Points — VP of Engineering'},
+    {id:2,title:'Persona Pain Points — Directors & Managers'},
+    {id:3,title:'Competitive Angles — Heroku, Acquia, Pantheon, Vercel'},
+    {id:4,title:'Trigger Words Map — burnout, delayed launch, audit, time back'},
+    {id:5,title:'Value Drivers — Speed, Scale, Security, Simplicity, Standardization, Sustainability'},
+  ]);
+  const msgEndRef=useRef();
+  const fileRef=useRef();
+
+  useEffect(()=>{msgEndRef.current?.scrollIntoView({behavior:'smooth'});},[messages]);
+
+  function getAiResp(msg){
+    const low=msg.toLowerCase();
+    for(const[k,v] of Object.entries(CHAT_MAP)){
+      if(k.split('|').some(kw=>low.includes(kw))) return v;
+    }
+    if(msg.length>100) return 'Got it — I have added that content to your knowledge base. When you use this in messaging, make sure to verify any product claims at upsun.com before sending.';
+    const personas=['VP of Engineering','Director of Platform Engineering','CTO'];
+    return `Good question. Here is a coaching frame: focus on discovery before pitching. Ask about current deployment workflows, environment management pain, and team size before introducing Upsun. The best entry point is usually the ${personas[Math.floor(Math.random()*personas.length)]} persona — lead with their specific pain and let the product speak for itself. See upsun.com for validated messaging.`;
+  }
+
+  function sendMessage(){
+    if(!inputVal.trim()) return;
+    const text=inputVal.trim();
+    if(text.length>100){
+      setKb(prev=>[...prev,{id:Date.now(),title:`Custom Content ${prev.length-4}`}]);
+    }
+    setMessages(prev=>[...prev,{role:'user',text}]);
+    setInputVal('');
+    setTimeout(()=>{setMessages(prev=>[...prev,{role:'ai',text:getAiResp(text)}]);},800);
+  }
+
+  function handleObjection(){
+    if(!objInput.trim()) return;
+    const low=objInput.toLowerCase();
+    let found=null;
+    for(const[k,v] of Object.entries(OBJECTION_MAP)){
+      if(k.split('|').some(kw=>low.includes(kw))){found=v;break;}
+    }
+    setObjResponses(found||DEFAULT_OBJ);
+  }
+
+  function handleAttach(e){
+    const f=e.target.files[0];
+    if(!f) return;
+    const reader=new FileReader();
+    reader.onload=()=>{
+      setKb(prev=>[...prev,{id:Date.now(),title:`Uploaded: ${f.name}`}]);
+      setMessages(prev=>[...prev,{role:'ai',text:`I have added "${f.name}" to the knowledge base. Remember to verify any product claims against upsun.com before use.`}]);
+    };
+    reader.readAsText(f);
+    e.target.value='';
+  }
+
+  return (
+    <div className={`fixed top-0 right-0 h-full w-[420px] bg-slate-900 text-white z-40 shadow-2xl slide-panel flex flex-col ${open?'open':''}`}>
+      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700 flex-shrink-0">
+        <div>
+          <h2 className="font-bold text-base">🧠 Upsun Sales Expert</h2>
+          <p className="text-xs text-slate-400">trained on your playbook</p>
+        </div>
+        <button onClick={onClose} className="text-slate-400 hover:text-white text-2xl font-bold leading-none">×</button>
+      </div>
+      <div className="bg-amber-900/40 border border-amber-700/50 mx-3 mt-3 rounded-lg p-3 text-xs text-amber-200 flex-shrink-0">
+        ⚠️ Product claims are pulled from public Upsun sources. Use the knowledge base below for custom messaging and terminology only.
+      </div>
+      <div className="flex gap-1 mx-3 mt-3 flex-shrink-0">
+        {['chat','objections'].map(t=>(
+          <button key={t} onClick={()=>setTab(t)} className={`flex-1 py-1.5 rounded-lg text-sm font-medium transition-colors ${tab===t?'bg-violet-600 text-white':'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}>
+            {t==='chat'?'Chat':'Objection Handler'}
+          </button>
+        ))}
+      </div>
+      {tab==='chat'?(
+        <div className="flex flex-col flex-1 overflow-hidden mt-3">
+          <div className="flex-1 overflow-y-auto px-3 pb-2 space-y-3">
+            {messages.map((m,i)=>(
+              <div key={i} className={`flex ${m.role==='user'?'justify-end':'justify-start'}`}>
+                <div className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${m.role==='user'?'bg-violet-600 text-white':'bg-slate-700 text-slate-100'}`}>{m.text}</div>
+              </div>
+            ))}
+            <div ref={msgEndRef}/>
+          </div>
+          <div className="px-3 pb-3 border-t border-slate-700 pt-3 flex-shrink-0">
+            <div className="flex gap-2 mb-2">
+              <textarea value={inputVal} onChange={e=>setInputVal(e.target.value)}
+                onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();}}}
+                placeholder="Ask anything, or paste content to add to knowledge base..."
+                className="flex-1 resize-none bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-violet-500"
+                rows={2}/>
+              <button onClick={sendMessage} className="px-3 py-2 bg-violet-600 hover:bg-violet-700 rounded-xl text-sm font-medium transition-colors self-end">Send</button>
+            </div>
+            <input ref={fileRef} type="file" accept=".txt,.md,.csv" onChange={handleAttach} className="hidden"/>
+            <button onClick={()=>fileRef.current.click()} className="text-xs text-slate-400 hover:text-slate-200 transition-colors">📎 Attach File</button>
+          </div>
+          <div className="border-t border-slate-700 px-3 pb-3 pt-3 flex-shrink-0">
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Knowledge Base</p>
+            <div className="space-y-1.5 max-h-32 overflow-y-auto">
+              {kb.map(item=>(
+                <div key={item.id} className="flex items-center justify-between bg-slate-800 rounded-lg px-3 py-1.5">
+                  <span className="text-xs text-slate-300 truncate flex-1">{item.title}</span>
+                  <button onClick={()=>setKb(p=>p.filter(k=>k.id!==item.id))} className="text-slate-500 hover:text-red-400 ml-2 text-xs font-bold flex-shrink-0">×</button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      ):(
+        <div className="flex-1 overflow-y-auto p-3 mt-3">
+          <textarea value={objInput} onChange={e=>setObjInput(e.target.value)}
+            placeholder="Type or paste an objection here... e.g. 'we already use Heroku'"
+            className="w-full h-24 resize-none bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-violet-500 mb-3"/>
+          <button onClick={handleObjection} className="w-full py-2 bg-violet-600 hover:bg-violet-700 rounded-xl text-sm font-medium transition-colors mb-4">Generate Responses</button>
+          {objResponses.length>0&&(
+            <div className="space-y-3">
+              {objResponses.map((r,i)=>(
+                <div key={i} className="bg-slate-800 rounded-xl p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs text-slate-400 font-semibold">Option {i+1}</span>
+                    <CopyBtn text={r}/>
+                  </div>
+                  <p className="text-sm text-slate-200 leading-relaxed">{r}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ========== SIGNAL FEED ==========
+
+function SignalFeed({accounts,open}){
+  const signals=[];
+  accounts.forEach(acc=>{
+    if(acc.intentSignals?.paas==='High') signals.push({type:'intent',text:'PaaS intent → High',company:acc.company,priority:3});
+    if(acc.intentSignals?.cloudApp==='High') signals.push({type:'intent',text:'Cloud App intent → High',company:acc.company,priority:2});
+    if(acc.hiringSignals&&acc.hiringSignals.length>0&&acc.hiringSignals[0]!=='No recent signals'){
+      acc.hiringSignals.forEach(s=>{
+        signals.push({type:'hiring',text:s,company:acc.company,priority:s.includes('⭐')?4:1});
+      });
+    }
+  });
+  signals.sort((a,b)=>b.priority-a.priority);
+  if(!open) return null;
+  return (
+    <div className="w-[280px] flex-shrink-0 bg-white dark:bg-slate-800 border-l border-slate-200 dark:border-slate-700 flex flex-col h-full overflow-hidden">
+      <div className="px-3 py-2.5 border-b border-slate-200 dark:border-slate-700 flex-shrink-0">
+        <p className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wide">Signal Feed — Today's Triggers</p>
+      </div>
+      <div className="flex-1 overflow-y-auto p-3 space-y-2">
+        {signals.length===0?(
+          <p className="text-xs text-slate-400 italic">No signals found.</p>
+        ):signals.map((s,i)=>(
+          <div key={i} className="flex items-start gap-2 p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
+            <span className="text-base mt-0.5 flex-shrink-0">{s.text.includes('⭐')?'⭐':s.type==='intent'?'⚡':'👤'}</span>
+            <div className="min-w-0">
+              <p className="text-xs text-slate-700 dark:text-slate-200 leading-snug break-words">{s.text}</p>
+              <p className="text-xs text-violet-600 dark:text-violet-400 font-medium mt-0.5">{s.company}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ========== STATS PANEL ==========
+
+function StatsPanel({accounts}){
+  const total=accounts.length;
+  const booked=accounts.filter(a=>a.status==='Meeting Booked').length;
+  const rate=total?Math.round((booked/total)*100):0;
+  const activeSignals=accounts.filter(a=>a.intentSignals?.paas==='High'||a.intentSignals?.cloudApp==='High').length;
+  const CHART_TECHS=['Magento','WordPress','Drupal','Heroku','Pantheon','Acquia','Vercel','Adobe Commerce Cloud'];
+  const chartData=CHART_TECHS.map(t=>({
+    name:t,
+    count:accounts.filter(a=>a.status==='Meeting Booked'&&a.techStack?.includes(t)).length,
+  })).filter(d=>d.count>0);
+  const maxCnt=chartData.length?Math.max(...chartData.map(d=>d.count)):1;
+  return (
+    <div className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-4 py-3 flex-shrink-0">
+      <div className="flex gap-3 flex-wrap items-start">
+        {[
+          {label:'Total Accounts',value:total,color:'text-slate-800 dark:text-slate-100'},
+          {label:'Meetings Booked',value:booked,color:'text-green-600 dark:text-green-400'},
+          {label:'Conversion Rate',value:`${rate}%`,color:'text-violet-600 dark:text-violet-400'},
+          {label:'Active Signals',value:activeSignals,color:'text-amber-600 dark:text-amber-400'},
+        ].map(({label,value,color})=>(
+          <div key={label} className="bg-slate-50 dark:bg-slate-700/50 rounded-xl px-4 py-2.5 min-w-[120px]">
+            <p className="text-xs text-slate-500 dark:text-slate-400">{label}</p>
+            <p className={`text-2xl font-bold ${color}`}>{value}</p>
+          </div>
+        ))}
+        <div className="flex-1 min-w-[260px] bg-slate-50 dark:bg-slate-700/50 rounded-xl px-4 py-2.5">
+          <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">Meetings Booked by Platform / Competitor</p>
+          {chartData.length===0?(
+            <p className="text-xs text-slate-400 italic">Mark accounts as 'Meeting Booked' to see platform data</p>
+          ):(
+            <div className="flex items-end gap-3 h-14">
+              {chartData.map(d=>(
+                <div key={d.name} className="flex flex-col items-center gap-0.5">
+                  <span className="text-xs font-bold text-violet-600 dark:text-violet-400">{d.count}</span>
+                  <div className="bg-violet-500 w-8 rounded-t" style={{height:`${Math.max(4,Math.round((d.count/maxCnt)*40))}px`}}/>
+                  <span className="text-xs text-slate-400 max-w-[52px] text-center leading-tight truncate">{d.name}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ========== FILTER BAR ==========
+
+function FilterBar({filters,setFilters,accounts,onSearch,searchLoading,searchMsg,onImport,onLookalikes}){
+  const [searchVal,setSearchVal]=useState('');
+  const competitors=[...new Set(accounts.map(a=>a.competitor).filter(Boolean)),'None Detected'];
+  const hasFilters=Object.values(filters).some(v=>v!=='All');
+  const handleKey=(e)=>{
+    if(e.key==='Enter'&&searchVal.trim()){
+      onSearch(searchVal.trim());
+      setSearchVal('');
+    }
+  };
+  return (
+    <div className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-4 py-2 flex flex-wrap items-center gap-2 flex-shrink-0">
+      <div className="relative">
+        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">🔍</span>
+        <input value={searchVal} onChange={e=>setSearchVal(e.target.value)} onKeyDown={handleKey}
+          placeholder="Search or add a company name / domain..."
+          className="pl-8 pr-3 py-1.5 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:border-violet-400 w-64"/>
+        {searchLoading&&<span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-violet-500 animate-pulse whitespace-nowrap">{searchMsg}</span>}
+      </div>
+      {[
+        {key:'icpFit',opts:['All','Strong (80+)','Possible (60-79)','Poor (<60)']},
+        {key:'icpCategory',opts:['All','SaaS','Higher Ed','Manufacturing']},
+        {key:'status',opts:['All','New','In Progress','Meeting Booked','Dead']},
+        {key:'competitor',opts:['All',...competitors]},
+        {key:'intent',opts:['All','High Intent','Medium Intent','Low Intent']},
+      ].map(({key,opts})=>(
+        <select key={key} value={filters[key]} onChange={e=>setFilters(p=>({...p,[key]:e.target.value}))}
+          className={`text-xs py-1.5 px-2 border rounded-lg bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-violet-400 ${filters[key]!=='All'?'border-violet-400 text-violet-700 dark:text-violet-300':'border-slate-200 dark:border-slate-700'}`}>
+          {opts.map(o=><option key={o}>{o}</option>)}
+        </select>
+      ))}
+      {hasFilters&&<button onClick={()=>setFilters({icpFit:'All',icpCategory:'All',status:'All',competitor:'All',intent:'All'})} className="text-xs text-violet-600 dark:text-violet-400 hover:underline">Clear Filters</button>}
+      <div className="ml-auto flex gap-2">
+        <button onClick={onLookalikes} className="text-xs px-3 py-1.5 bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300 hover:bg-violet-200 dark:hover:bg-violet-900/60 rounded-lg font-medium transition-colors">Find Lookalikes</button>
+        <button onClick={onImport} className="text-xs px-3 py-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-lg font-medium transition-colors text-slate-700 dark:text-slate-200">Import Accounts</button>
+      </div>
+    </div>
+  );
+}
+
+// ========== TABLE ==========
+
+const COL_DEFS={
+  status:   {label:'Status',         minWidth:148},
+  deal:     {label:'Deal %',         minWidth:75},
+  company:  {label:'Company',        minWidth:185},
+  icpFit:   {label:'ICP Fit',        minWidth:130},
+  icpCat:   {label:'ICP Category',   minWidth:115},
+  intent:   {label:'ZoomInfo Intent',minWidth:165},
+  personas: {label:'Personas',       minWidth:215},
+  hiring:   {label:'Hiring Signals', minWidth:210},
+  techStack:{label:'Tech Stack',     minWidth:200},
+  competitor:{label:'Competitor',    minWidth:155},
+  hq:       {label:'HQ Location',    minWidth:145},
+  linkedin: {label:'LinkedIn',       minWidth:130},
+  outreach: {label:'Quick Outreach', minWidth:145},
+  actions:  {label:'Actions',        minWidth:220},
+};
+
+const DEFAULT_COL_ORDER=['status','deal','company','icpFit','icpCat','intent','personas','hiring','techStack','competitor','hq','linkedin','outreach','actions'];
+
+function AccountTable({accounts,setAccounts,highlightId}){
+  const [personaModal,setPersonaModal]=useState(null);
+  const [outreachModal,setOutreachModal]=useState(null);
+  const [cadenceModal,setCadenceModal]=useState(null);
+  const [planModal,setPlanModal]=useState(null);
+  const [timelineModal,setTimelineModal]=useState(null);
+  const [colOrder,setColOrder]=useState(DEFAULT_COL_ORDER);
+  const [dragCol,setDragCol]=useState(null);
+  const [dragOverCol,setDragOverCol]=useState(null);
+  const tableRef=useRef();
+
+  useEffect(()=>{
+    if(highlightId&&tableRef.current){
+      const row=tableRef.current.querySelector(`[data-rowid="${highlightId}"]`);
+      if(row) row.scrollIntoView({behavior:'smooth',block:'center'});
+    }
+  },[highlightId]);
+
+  function updateStatus(id,status){
+    setAccounts(prev=>prev.map(a=>{
+      if(a.id!==id) return a;
+      return {...a,status,
+        meetingBookedAt:status==='Meeting Booked'?new Date().toISOString():a.meetingBookedAt,
+        timeline:[...a.timeline,{date:new Date().toISOString().split('T')[0],type:'status',text:`Status changed to ${status}`}]
+      };
+    }));
+  }
+
+  function onDragStart(e,key){
+    setDragCol(key);
+    e.dataTransfer.effectAllowed='move';
+  }
+  function onDragOver(e,key){
+    e.preventDefault();
+    if(key!==dragCol) setDragOverCol(key);
+  }
+  function onDrop(e,key){
+    e.preventDefault();
+    if(!dragCol||dragCol===key){setDragCol(null);setDragOverCol(null);return;}
+    const next=[...colOrder];
+    const fi=next.indexOf(dragCol);
+    const ti=next.indexOf(key);
+    next.splice(fi,1);
+    next.splice(ti,0,dragCol);
+    setColOrder(next);
+    setDragCol(null);
+    setDragOverCol(null);
+  }
+  function onDragEnd(){setDragCol(null);setDragOverCol(null);}
+
+  // Compute sticky left offsets for the first 3 columns in the current order
+  function getStickyStyle(idx){
+    if(idx>2) return {};
+    let left=0;
+    for(let i=0;i<idx;i++) left+=COL_DEFS[colOrder[i]].minWidth;
+    return {position:'sticky',left:`${left}px`,zIndex:10,
+      boxShadow:idx===2?'4px 0 8px rgba(0,0,0,0.08)':undefined};
+  }
+  function getThStickyStyle(idx){
+    if(idx>2) return {};
+    let left=0;
+    for(let i=0;i<idx;i++) left+=COL_DEFS[colOrder[i]].minWidth;
+    return {position:'sticky',left:`${left}px`,zIndex:22,
+      boxShadow:idx===2?'4px 0 8px rgba(0,0,0,0.1)':undefined};
+  }
+
+  function renderCell(key,acc,deal){
+    switch(key){
+      case 'status': return (
+        <select value={acc.status} onChange={e=>updateStatus(acc.id,e.target.value)}
+          className={`text-xs px-2 py-1 rounded-lg font-semibold border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-violet-400 ${getStatusStyle(acc.status)}`}>
+          {['New','In Progress','Meeting Booked','Dead'].map(s=><option key={s}>{s}</option>)}
+        </select>
+      );
+      case 'deal': return (
+        <span className={`text-xs font-bold px-2 py-1 rounded-lg text-white ${getDealBg(deal)}`}>{deal}%</span>
+      );
+      case 'company': return (
+        <div>
+          <p className="font-semibold text-sm text-slate-800 dark:text-slate-100 leading-tight">{acc.company}</p>
+          <p className="text-xs text-slate-400 mt-0.5">{acc.domain}</p>
+          <p className="text-xs text-slate-400">{acc.industry}</p>
+        </div>
+      );
+      case 'icpFit': return (
+        <div className="tooltip-wrap relative cursor-help">
+          <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1.5 mb-1">
+            <div className={`${getIcpBarColor(acc.icpScore)} h-1.5 rounded-full`} style={{width:`${acc.icpScore}%`}}/>
+          </div>
+          <p className="text-sm font-bold text-slate-800 dark:text-slate-100">{acc.icpScore}</p>
+          <p className={`text-xs font-medium ${getIcpTextColor(acc.icpScore)}`}>{getIcpLabel(acc.icpScore)}</p>
+          <div className="tooltip-box absolute z-30 left-0 top-full mt-1 w-64 bg-slate-900 text-white text-xs rounded-xl p-3 shadow-2xl pointer-events-none leading-relaxed">{acc.icpReason}</div>
+        </div>
+      );
+      case 'icpCat': return (
+        <span className={`text-xs px-2 py-1 rounded-lg font-semibold ${getCategoryStyle(acc.icpCategory)}`}>{acc.icpCategory}</span>
+      );
+      case 'intent': return (
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-slate-500 dark:text-slate-400 w-16 flex-shrink-0">PaaS</span>
+            <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${getIntentStyle(acc.intentSignals?.paas)}`}>{acc.intentSignals?.paas||'Low'}</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-slate-500 dark:text-slate-400 w-16 flex-shrink-0">Cloud App</span>
+            <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${getIntentStyle(acc.intentSignals?.cloudApp)}`}>{acc.intentSignals?.cloudApp||'Low'}</span>
+          </div>
+        </div>
+      );
+      case 'personas': return (
+        <div className="space-y-1">
+          {acc.personas&&acc.personas.map(p=>(
+            <button key={p} onClick={()=>setPersonaModal({acc,persona:p})}
+              className="flex items-center gap-1 text-xs text-violet-600 dark:text-violet-400 hover:text-violet-800 dark:hover:text-violet-200 hover:underline transition-colors text-left w-full">
+              <span className="flex-shrink-0">✉</span><span className="truncate">{p}</span>
+            </button>
+          ))}
+        </div>
+      );
+      case 'hiring': return (
+        <div className="space-y-1">
+          {acc.hiringSignals&&acc.hiringSignals.length>0&&acc.hiringSignals[0]!=='No recent signals'?(
+            acc.hiringSignals.map((s,i)=>(
+              <p key={i} className={`text-xs leading-snug ${s.includes('⭐')?'text-amber-600 dark:text-amber-400 font-semibold':'text-slate-600 dark:text-slate-400'}`}>{s}</p>
+            ))
+          ):(
+            <p className="text-xs text-slate-400 italic">No recent signals</p>
+          )}
+        </div>
+      );
+      case 'techStack': return (
+        <div className="flex flex-wrap gap-1">
+          {acc.techStack&&acc.techStack.map(t=>(
+            <span key={t} className={`text-xs px-1.5 py-0.5 rounded font-medium ${getTechColor(t)}`}>{t}</span>
+          ))}
+        </div>
+      );
+      case 'competitor': return (
+        acc.competitor?(
+          <div className="flex items-center gap-1.5">
+            <span className="text-amber-500">⚠</span>
+            <span className="text-xs font-semibold text-amber-600 dark:text-amber-400">{acc.competitor}</span>
+          </div>
+        ):(
+          <span className="text-xs text-slate-400 italic">None detected</span>
+        )
+      );
+      case 'hq': return (
+        <div className="flex items-center gap-1.5">
+          <span className="text-base leading-none">📍</span>
+          <span className="text-xs text-slate-700 dark:text-slate-300 leading-snug">{acc.hq||acc.location||'—'}</span>
+        </div>
+      );
+      case 'linkedin': return (
+        acc.linkedinUrl?(
+          <a href={acc.linkedinUrl} target="_blank" rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-semibold">
+            <span className="font-black text-base leading-none" style={{fontFamily:'serif'}}>in</span> View Page
+          </a>
+        ):(
+          <span className="text-xs text-slate-400 italic">—</span>
+        )
+      );
+      case 'outreach': return (
+        <button onClick={()=>setOutreachModal(acc)}
+          className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-violet-600 hover:bg-violet-700 text-white rounded-lg font-medium transition-colors whitespace-nowrap">
+          <span>⚡</span>Generate Email
+        </button>
+      );
+      case 'actions': return (
+        <div className="flex flex-col gap-1">
+          <button onClick={()=>setCadenceModal(acc)} className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-lg transition-colors text-slate-700 dark:text-slate-200 text-left">
+            <span>✉</span>Create Cadence
+          </button>
+          <button onClick={()=>setPlanModal(acc)} className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-lg transition-colors text-slate-700 dark:text-slate-200 text-left">
+            <span>📄</span>View Account Plan
+          </button>
+          <button onClick={()=>setTimelineModal(acc)} className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-lg transition-colors text-slate-700 dark:text-slate-200 text-left">
+            <span>🕐</span>View Timeline
+          </button>
+        </div>
+      );
+      default: return null;
+    }
+  }
+
+  const thBase='text-left px-3 py-2 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 whitespace-nowrap select-none cursor-grab active:cursor-grabbing';
+  const tdBase='px-3 py-3 bg-white dark:bg-slate-800';
+
+  return (
+    <div ref={tableRef} className="overflow-x-auto w-full h-full">
+      {personaModal&&<PersonaEmailModal acc={personaModal.acc} persona={personaModal.persona} onClose={()=>setPersonaModal(null)}/>}
+      {outreachModal&&<OutreachEmailModal acc={outreachModal} onClose={()=>setOutreachModal(null)}/>}
+      {cadenceModal&&<CadenceModal acc={cadenceModal} onClose={()=>setCadenceModal(null)}/>}
+      {planModal&&<AccountPlanModal acc={planModal} onClose={()=>setPlanModal(null)}/>}
+      {timelineModal&&<TimelineModal acc={timelineModal} onClose={()=>setTimelineModal(null)}/>}
+      <div className="px-4 py-1.5 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700 text-xs text-slate-400 dark:text-slate-500 flex-shrink-0">
+        ⠿ Drag column headers left or right to reorder
+      </div>
+      <table className="w-full border-collapse" style={{minWidth:'2150px'}}>
+        <thead className="sticky top-0 z-20">
+          <tr>
+            {colOrder.map((key,idx)=>{
+              const def=COL_DEFS[key];
+              const isDragging=dragCol===key;
+              const isOver=dragOverCol===key;
+              return (
+                <th key={key} draggable
+                  onDragStart={e=>onDragStart(e,key)}
+                  onDragOver={e=>onDragOver(e,key)}
+                  onDrop={e=>onDrop(e,key)}
+                  onDragEnd={onDragEnd}
+                  style={{...getThStickyStyle(idx),minWidth:`${def.minWidth}px`}}
+                  className={`${thBase} ${isDragging?'opacity-30':''} ${isOver?'bg-violet-100 dark:bg-violet-900/30':''} transition-colors`}
+                  title="Drag to reorder column">
+                  <div className="flex items-center gap-1">
+                    <span className="text-slate-300 dark:text-slate-600 text-xs mr-0.5" aria-hidden="true">⠿</span>
+                    {def.label}
+                  </div>
+                </th>
+              );
+            })}
+          </tr>
+        </thead>
+        <tbody>
+          {accounts.map(acc=>{
+            const deal=calcDeal(acc);
+            const isHL=acc.id===highlightId;
+            return (
+              <tr key={acc.id} data-rowid={acc.id}
+                className={`border-b border-slate-100 dark:border-slate-700/50 hover:bg-slate-50/70 dark:hover:bg-slate-700/30 transition-colors ${isHL?'row-highlight':''}`}>
+                {colOrder.map((key,idx)=>(
+                  <td key={key} className={tdBase} style={{...getStickyStyle(idx),minWidth:`${COL_DEFS[key].minWidth}px`}}>
+                    {renderCell(key,acc,deal)}
+                  </td>
+                ))}
+              </tr>
+            );
+          })}
+          {accounts.length===0&&(
+            <tr>
+              <td colSpan={colOrder.length} className="text-center py-20 text-slate-400 italic">No accounts match the current filters.</td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// ========== MAIN APP ==========
+
+function App(){
+  const [darkMode,setDarkMode]=useState(false);
+  const [tabs,setTabs]=useState([
+    {id:1,name:'My Workspace',accounts:deepClone(SAMPLE_ACCOUNTS)},
+    {id:2,name:'BDR 1',accounts:deepClone(SAMPLE_ACCOUNTS)},
+    {id:3,name:'BDR 2',accounts:deepClone(SAMPLE_ACCOUNTS)},
+  ]);
+  const [activeTab,setActiveTab]=useState(1);
+  const [editingTab,setEditingTab]=useState(null);
+  const [editTabVal,setEditTabVal]=useState('');
+  const [filters,setFilters]=useState({icpFit:'All',icpCategory:'All',status:'All',competitor:'All',intent:'All'});
+  const [searchLoading,setSearchLoading]=useState(false);
+  const [searchMsg,setSearchMsg]=useState('');
+  const [highlightId,setHighlightId]=useState(null);
+  const [aiBrainOpen,setAiBrainOpen]=useState(false);
+  const [signalOpen,setSignalOpen]=useState(false);
+  const [showImport,setShowImport]=useState(false);
+  const [showLookalikes,setShowLookalikes]=useState(false);
+  const tabNextId=useRef(4);
+  const accNextId=useRef(100);
+
+  useEffect(()=>{
+    if(darkMode) document.documentElement.classList.add('dark');
+    else document.documentElement.classList.remove('dark');
+  },[darkMode]);
+
+  const currentTab=tabs.find(t=>t.id===activeTab);
+  const accounts=currentTab?.accounts||[];
+
+  function setAccounts(updater){
+    setTabs(prev=>prev.map(t=>{
+      if(t.id!==activeTab) return t;
+      const newAccs=typeof updater==='function'?updater(t.accounts):updater;
+      return {...t,accounts:newAccs};
+    }));
+  }
+
+  function addTab(){
+    const id=tabNextId.current++;
+    setTabs(prev=>[...prev,{id,name:`Tab ${id}`,accounts:deepClone(SAMPLE_ACCOUNTS)}]);
+    setActiveTab(id);
+  }
+
+  function removeTab(id){
+    if(tabs.length<=1) return;
+    const remaining=tabs.filter(t=>t.id!==id);
+    setTabs(remaining);
+    if(activeTab===id) setActiveTab(remaining[0].id);
+  }
+
+  function saveEditTab(id){
+    if(editTabVal.trim()) setTabs(prev=>prev.map(t=>t.id===id?{...t,name:editTabVal.trim()}:t));
+    setEditingTab(null);
+  }
+
+  const SEARCH_MSGS=['Scanning tech stack...','Checking hiring signals...','Detecting competitors...','Scoring ICP fit...'];
+  function handleSearch(query){
+    setSearchLoading(true);
+    let i=0;
+    setSearchMsg(SEARCH_MSGS[0]);
+    const t=setInterval(()=>{
+      i++;
+      if(i<SEARCH_MSGS.length){setSearchMsg(SEARCH_MSGS[i]);}
+      else{
+        clearInterval(t);
+        const newId=accNextId.current++;
+        const base=deepClone(SAMPLE_ACCOUNTS[0]);
+        base.id=newId;
+        base.company=query;
+        base.domain=query.toLowerCase().replace(/\s+/g,'')+'.com';
+        base.status='New';
+        base.touches=0;
+        base.meetingBookedAt=null;
+        base.timeline=[{date:new Date().toISOString().split('T')[0],type:'added',text:'Account added via search'}];
+        setAccounts(prev=>[base,...prev]);
+        setHighlightId(newId);
+        setSearchLoading(false);
+        setTimeout(()=>setHighlightId(null),2000);
+      }
+    },500);
+  }
+
+  function applyFilters(accs){
+    return accs.filter(a=>{
+      if(filters.status!=='All'&&a.status!==filters.status) return false;
+      if(filters.icpCategory!=='All'&&a.icpCategory!==filters.icpCategory) return false;
+      if(filters.icpFit==='Strong (80+)'&&a.icpScore<80) return false;
+      if(filters.icpFit==='Possible (60-79)'&&(a.icpScore<60||a.icpScore>=80)) return false;
+      if(filters.icpFit==='Poor (<60)'&&a.icpScore>=60) return false;
+      if(filters.competitor!=='All'){
+        if(filters.competitor==='None Detected'&&a.competitor) return false;
+        if(filters.competitor!=='None Detected'&&a.competitor!==filters.competitor) return false;
+      }
+      if(filters.intent!=='All'){
+        const hi=a.intentSignals?.paas==='High'||a.intentSignals?.cloudApp==='High';
+        const med=!hi&&(a.intentSignals?.paas==='Medium'||a.intentSignals?.cloudApp==='Medium');
+        const lo=!hi&&!med;
+        if(filters.intent==='High Intent'&&!hi) return false;
+        if(filters.intent==='Medium Intent'&&!med) return false;
+        if(filters.intent==='Low Intent'&&!lo) return false;
+      }
+      return true;
+    });
+  }
+
+  const filtered=applyFilters(accounts);
+
+  function handleAddLookalike(ll){
+    const newId=accNextId.current++;
+    const base={
+      id:newId,status:'New',
+      company:ll.company,domain:ll.domain,
+      industry:ll.industry,icpCategory:ll.icpCategory,
+      size:'Unknown',location:'Unknown',
+      description:'Lookalike account added from recommendations.',
+      icpScore:ll.icpScore,
+      icpReason:'Lookalike account — update ICP details based on research.',
+      intentSignals:{paas:'Medium',cloudApp:'Low'},
+      personas:['Director of Engineering'],
+      hiringSignals:[],techStack:ll.techStack||[],competitor:ll.competitor||null,
+      meetingBookedAt:null,touches:0,
+      timeline:[{date:new Date().toISOString().split('T')[0],type:'added',text:'Lookalike account added from recommendations'}],
+    };
+    setAccounts(prev=>[...prev,base]);
+  }
+
+  return (
+    <div className="flex flex-col h-screen overflow-hidden bg-slate-100 dark:bg-slate-950">
+
+      {/* HEADER */}
+      <header className="bg-gradient-to-r from-slate-900 to-slate-800 text-white flex-shrink-0 shadow-xl z-30">
+        <div className="flex items-center gap-3 px-4 py-3">
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="w-8 h-8 bg-violet-600 rounded-lg flex items-center justify-center font-bold text-base shadow">⚡</div>
+            <div>
+              <div className="font-bold text-white text-sm leading-tight">Upsun</div>
+              <div className="text-xs text-slate-400 leading-tight">Outbound Command Center</div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1 flex-1 overflow-x-auto min-w-0">
+            {tabs.map(t=>(
+              <div key={t.id}
+                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg cursor-pointer text-sm font-medium transition-colors flex-shrink-0 select-none ${activeTab===t.id?'bg-violet-600 text-white':'text-slate-400 hover:bg-slate-700 hover:text-slate-200'}`}
+                onClick={()=>setActiveTab(t.id)}
+                onDoubleClick={()=>{setEditingTab(t.id);setEditTabVal(t.name);}}>
+                {editingTab===t.id?(
+                  <input autoFocus value={editTabVal} onChange={e=>setEditTabVal(e.target.value)}
+                    onKeyDown={e=>{if(e.key==='Enter') saveEditTab(t.id);if(e.key==='Escape') setEditingTab(null);}}
+                    onBlur={()=>saveEditTab(t.id)}
+                    onClick={e=>e.stopPropagation()}
+                    className="bg-transparent border-b border-white/60 outline-none w-24 text-sm"/>
+                ):(
+                  <span>{t.name}</span>
+                )}
+                {tabs.length>1&&(
+                  <button onClick={e=>{e.stopPropagation();removeTab(t.id);}} className="ml-1 opacity-50 hover:opacity-100 text-xs leading-none">×</button>
+                )}
+              </div>
+            ))}
+            <button onClick={addTab} className="px-2 py-1.5 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg text-sm transition-colors flex-shrink-0">+ New Tab</button>
+          </div>
+
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <button onClick={()=>setAiBrainOpen(!aiBrainOpen)} className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${aiBrainOpen?'bg-violet-700 text-white':'bg-violet-600 hover:bg-violet-700 text-white'}`}>🧠 AI Brain</button>
+            <button onClick={()=>setDarkMode(!darkMode)} className="w-8 h-8 flex items-center justify-center bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors">{darkMode?'☀️':'🌙'}</button>
+            <div className="flex items-center gap-1.5 text-xs text-slate-400">
+              <span className="w-2 h-2 bg-green-400 rounded-full" style={{animation:'pulse 2s infinite'}}/>Live
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <StatsPanel accounts={accounts}/>
+
+      <FilterBar filters={filters} setFilters={setFilters} accounts={accounts}
+        onSearch={handleSearch} searchLoading={searchLoading} searchMsg={searchMsg}
+        onImport={()=>setShowImport(true)} onLookalikes={()=>setShowLookalikes(true)}/>
+
+      {/* TABLE + SIGNAL FEED */}
+      <div className="flex flex-1 overflow-hidden relative">
+        <div className="flex-1 overflow-auto">
+          <AccountTable accounts={filtered} setAccounts={setAccounts} highlightId={highlightId}/>
+        </div>
+
+        {/* Signal feed toggle */}
+        <button onClick={()=>setSignalOpen(!signalOpen)}
+          className="absolute top-1/2 -translate-y-1/2 bg-violet-600 hover:bg-violet-700 text-white w-5 h-14 rounded-l-lg flex items-center justify-center text-xs z-20 shadow-lg transition-all"
+          style={{right:signalOpen?'280px':'0',transition:'right 0.3s ease'}}>
+          {signalOpen?'›':'‹'}
+        </button>
+
+        <SignalFeed accounts={accounts} open={signalOpen}/>
+      </div>
+
+      {showImport&&<ImportModal onClose={()=>setShowImport(false)} onImport={newAccs=>setAccounts(prev=>[...prev,...newAccs])}/>}
+      {showLookalikes&&<LookalikesModal accounts={accounts} onClose={()=>setShowLookalikes(false)} onAdd={handleAddLookalike}/>}
+      <AiBrainPanel open={aiBrainOpen} onClose={()=>setAiBrainOpen(false)}/>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
