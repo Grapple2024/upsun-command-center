@@ -1,0 +1,22 @@
+applications:
+  command-center:
+    type: nodejs:22
+    hooks:
+      build: |
+        echo "Static site — no build step required."
+    web:
+      locations:
+        /:
+          root: "."
+          index:
+            - index.html
+          allow: true
+          scripts: false
+
+routes:
+  "https://{default}/":
+    type: upstream
+    upstream: "command-center:http"
+  "https://www.{default}/":
+    type: redirect
+    to: "https://{default}/"
